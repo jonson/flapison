@@ -9,6 +9,7 @@ from flask.views import MethodView, MethodViewType
 from marshmallow import ValidationError
 from marshmallow_jsonapi.exceptions import IncorrectTypeError
 from six import with_metaclass
+from werkzeug.http import parse_options_header
 
 from flapison.data_layers.alchemy import SqlalchemyDataLayer
 from flapison.data_layers.base import BaseDataLayer
@@ -160,17 +161,30 @@ class Resource(MethodView):
             )
 
         # Choose a renderer based on the Accept header
-        if request.accept_mimetypes.best in self.response_renderers:
-            accept_type = request.accept_mimetypes.best
-        elif request.accept_mimetypes.accept_json or len(request.accept_mimetypes) < 1:
-            accept_type = "application/vnd.api+json"
-        else:
-            # Check if we support the response type
-            raise InvalidAcceptType(
-                "This endpoint only provides the following content types: {}".format(
-                    ", ".join(self.response_renderers.keys())
+        accept_type = None
+        # First, try all the user-provided Accept headers in descending priority order
+        for mime, quality in request.accept_mimetypes:
+            # Parse out the options (see https://github.com/TMiguelT/flapison/issues/10)
+            general_mime, opts = parse_options_header(mime)
+
+            if general_mime in self.response_renderers:
+                accept_type = general_mime
+
+        if not accept_type:
+            if (
+                request.accept_mimetypes.accept_json
+                or len(request.accept_mimetypes) < 1
+            ):
+                # If the user hasn't provided an accept header, or they've provided a general header that could accept JSON,
+                # treat it like "application/vnd.api+json"
+                accept_type = "application/vnd.api+json"
+            else:
+                # Finally, if none of the above match, return an error code
+                raise InvalidAcceptType(
+                    "This endpoint only provides the following content types: {}".format(
+                        ", ".join(self.response_renderers.keys())
+                    )
                 )
-            )
 
         renderer = self.response_renderers[accept_type]
 

@@ -247,3 +247,15 @@ def test_no_content_post(person, person_2, client, registered_routes):
     response = client.post("/persons")
 
     assert response.status_code == 415
+
+
+def test_accept_charset(person, person_2, client, registered_routes):
+    """
+    Check that a request with a valid Accept header but a charset parameter works
+    """
+    response = client.get(
+        "/persons", headers={"Accept": "application/vnd.api+json; charset=utf-8",}
+    )
+
+    assert response.status_code == 200, response.json
+    assert len(response.json["data"]) == 2
