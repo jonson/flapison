@@ -172,7 +172,7 @@ def test_get_list(client, registered_routes, person, person_2):
             {
                 "page[number]": 1,
                 "page[size]": 1,
-                "fields[person]": "name,birth_date",
+                "fields[person]": "name,birth_date,computers",
                 "sort": "-name",
                 "include": "computers.owner",
                 "filter": json.dumps(
@@ -500,6 +500,18 @@ def test_get_detail(client, registered_routes, person):
             "/persons/" + str(person.person_id), content_type="application/vnd.api+json"
         )
         assert response.status_code == 200, response.json["errors"]
+
+
+def test_get_detail_with_sparse_fieldsets(client, registered_routes, person):
+    with client:
+        querystring = urlencode({"fields[person]": "name",})
+        response = client.get(
+            "/persons/" + str(person.person_id) + "?" + querystring,
+            content_type="application/vnd.api+json",
+        )
+        assert response.status_code == 200, response.json["errors"]
+        assert "name" in response.json["data"]["attributes"]
+        assert len(response.json["data"]["attributes"]) == 1
 
 
 def test_patch_detail(client, registered_routes, computer, person):
