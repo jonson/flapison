@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-__version__ = "0.30.10"
+__version__ = "0.30.10+treum1"
 
 setup(
     name="flapison",
