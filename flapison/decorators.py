@@ -3,6 +3,7 @@
 """Decorators to check headers and method requirements for each Api calls"""
 
 import json
+import logging
 from functools import wraps
 
 from flask import request, make_response, jsonify, current_app
@@ -10,6 +11,9 @@ from flask import request, make_response, jsonify, current_app
 from flapison.errors import jsonapi_errors
 from flapison.exceptions import JsonApiException
 from flapison.utils import JSONEncoder
+
+
+logger = logging.getLogger(__name__)
 
 
 def check_headers(func):
@@ -111,6 +115,10 @@ def jsonapi_exception_formatter(func):
         try:
             return func(*args, **kwargs)
         except JsonApiException as e:
+            if isinstance(e.status, str) and e.status and e.status[0] == '5':
+                logger.exception("Exception while processing request")
+            elif isinstance(e.status, int) and 500 <= e.status <= 599:
+                logger.exception("Exception while processing request")
             return make_response(
                 jsonify(jsonapi_errors([e.to_dict()])), e.status, headers
             )
@@ -120,6 +128,8 @@ def jsonapi_exception_formatter(func):
 
             if "sentry" in current_app.extensions:
                 current_app.extensions["sentry"].captureException()
+
+            logger.exception('Unhandled exception while processing request')
 
             exc = JsonApiException(
                 getattr(
